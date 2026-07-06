@@ -1,8 +1,8 @@
 # Intervals.icu MCP Server
 
-Model Context Protocol (MCP) server for connecting Claude and ChatGPT with the Intervals.icu API. It provides tools for authentication and data retrieval for activities, events, wellness data, power curves, and custom items.
+Model Context Protocol (MCP) server for connecting Claude and ChatGPT with the Intervals.icu API. It provides tools for authentication and data retrieval for activities, events, wellness data, power curves, custom items, and sport settings (FTP/HR zones).
 
-If you find the Model Context Protocol (MCP) server useful, please consider supporting its continued development with a donation.
+> This is a personal fork of [mvilanova/intervals-mcp-server](https://github.com/mvilanova/intervals-mcp-server) with added `get_sport_settings` / `get_sport_setting` / `update_sport_settings` tools. If you find the upstream project useful, please consider supporting its continued development with a donation.
 
 ## Requirements
 
@@ -35,7 +35,7 @@ where.exe uv
 ### 2. Clone this repository
 
 ```bash
-git clone https://github.com/mvilanova/intervals-mcp-server.git
+git clone https://github.com/nqrlz/intervals-mcp-server.git
 cd intervals-mcp-server
 ```
 
