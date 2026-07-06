@@ -47,6 +47,7 @@ Usage:
 """
 
 import logging
+import os
 
 # Import API client and configuration
 from intervals_mcp_server.api.client import (
@@ -137,6 +138,15 @@ __all__ = [
 if __name__ == "__main__":
     # Validate ATHLETE_ID when server starts (not at import time to allow tests)
     validate_athlete_id(config.athlete_id)
+
+    # Allow HTTP/SSE transports to bind to a configurable host/port (e.g. 0.0.0.0
+    # inside a container). FastMCP's constructor always passes explicit
+    # host/port values to its Settings, so FASTMCP_HOST/FASTMCP_PORT env vars
+    # are not picked up automatically; override them here instead.
+    if os.getenv("HOST"):
+        mcp.settings.host = os.environ["HOST"]
+    if os.getenv("PORT"):
+        mcp.settings.port = int(os.environ["PORT"])
 
     # Setup transport and start server
     selected_transport = setup_transport()
