@@ -265,6 +265,9 @@ Once the server is running and Claude Desktop is configured, you can use the fol
 - `create_custom_item`: Create a new custom item for an athlete
 - `update_custom_item`: Update an existing custom item
 - `delete_custom_item`: Delete a custom item
+- `get_sport_settings`: Get per-sport settings (FTP, LTHR, max HR, zones, etc.) for every sport
+- `get_sport_setting`: Get settings for a single sport (e.g. Ride, Run, Swim)
+- `update_sport_settings`: Update settings for a single sport (e.g. FTP, LTHR, zones)
 
 ## Usage with ChatGPT
 

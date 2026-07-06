@@ -43,6 +43,9 @@ from intervals_mcp_server.server import (  # pylint: disable=wrong-import-positi
     create_custom_item,
     update_custom_item,
     delete_custom_item,
+    get_sport_settings,
+    get_sport_setting,
+    update_sport_settings,
 )
 from intervals_mcp_server.tools import gear as gear_module  # pylint: disable=wrong-import-position
 from tests.sample_data import INTERVALS_DATA, POWER_CURVES_DATA  # pylint: disable=wrong-import-position
@@ -949,3 +952,94 @@ def test_get_activities_resolves_gear_name(monkeypatch):
     assert "Ride 2" in result
     assert "Name: Litening Air" in result
     assert "Name: S-Works Tarmac SL8" in result
+
+
+def test_get_sport_settings(monkeypatch):
+    """Test get_sport_settings returns formatted settings for all sports."""
+    settings = [
+        {"id": "Ride", "ftp": 250, "lthr": 165},
+        {"id": "Run", "ftp": 0, "threshold_pace": 3.5},
+    ]
+
+    async def fake_request(*_args, **_kwargs):
+        return settings
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr(
+        "intervals_mcp_server.tools.sport_settings.make_intervals_request", fake_request
+    )
+    result = asyncio.run(get_sport_settings(athlete_id="1"))
+    assert "Sport settings for athlete 1" in result
+    assert '"ftp": 250' in result
+    assert '"id": "Run"' in result
+
+
+def test_get_sport_setting(monkeypatch):
+    """Test get_sport_setting returns formatted settings for a single sport."""
+    setting = {"id": "Ride", "ftp": 250, "lthr": 165}
+
+    async def fake_request(*_args, **_kwargs):
+        return setting
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr(
+        "intervals_mcp_server.tools.sport_settings.make_intervals_request", fake_request
+    )
+    result = asyncio.run(get_sport_setting("Ride", athlete_id="1"))
+    assert "Sport settings for athlete 1, sport Ride" in result
+    assert '"ftp": 250' in result
+
+
+def test_update_sport_settings(monkeypatch):
+    """Test update_sport_settings PUTs the settings and returns the response."""
+    expected_response = {"id": "Ride", "ftp": 260, "lthr": 165}
+    captured: dict = {}
+
+    async def fake_put_request(*_args, **kwargs):
+        captured.update(kwargs)
+        return expected_response
+
+    monkeypatch.setattr(
+        "intervals_mcp_server.api.client.make_intervals_request", fake_put_request
+    )
+    monkeypatch.setattr(
+        "intervals_mcp_server.tools.sport_settings.make_intervals_request", fake_put_request
+    )
+    result = asyncio.run(
+        update_sport_settings(
+            "Ride", {"ftp": 260}, athlete_id="1", recalc_hr_zones=True
+        )
+    )
+    assert "Successfully updated Ride sport settings for athlete 1" in result
+    assert '"ftp": 260' in result
+    assert captured["method"] == "PUT"
+    assert captured["params"] == {"recalcHrZones": "true"}
+    assert captured["data"] == {"ftp": 260}
+
+
+def test_update_sport_settings_requires_settings(monkeypatch):
+    """Test update_sport_settings rejects an empty settings payload without calling the API."""
+
+    async def fake_request(*_args, **_kwargs):
+        raise AssertionError("make_intervals_request should not be called")
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr(
+        "intervals_mcp_server.tools.sport_settings.make_intervals_request", fake_request
+    )
+    result = asyncio.run(update_sport_settings("Ride", {}, athlete_id="1"))
+    assert "No settings provided" in result
+
+
+def test_update_sport_settings_error(monkeypatch):
+    """Test update_sport_settings surfaces API errors."""
+
+    async def fake_request(*_args, **_kwargs):
+        return {"error": True, "message": "Invalid FTP value"}
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr(
+        "intervals_mcp_server.tools.sport_settings.make_intervals_request", fake_request
+    )
+    result = asyncio.run(update_sport_settings("Ride", {"ftp": -1}, athlete_id="1"))
+    assert "Error updating sport settings: Invalid FTP value" in result
