@@ -292,6 +292,85 @@ ChatGPT’s beta MCP connectors can also talk to this server over the SSE transp
 
 3. Save the connector and open a new chat. ChatGPT will keep the SSE connection open and POST follow-up requests to the `/messages/` endpoint announced by the server. If you restart the MCP server or tunnel, rerun the SSE command and update the connector URL if it changes.
 
+## Remote deployment (Fly.io)
+
+Claude's built-in "local" MCP connectors (configured via `claude_desktop_config.json`)
+only work reliably in Claude Desktop's classic chat, not in Cowork sessions or on
+Claude web/mobile, since they're spawned as a process on your own machine. To use
+this server from any Claude surface (web, mobile, Cowork), deploy it as a public
+**remote** MCP connector instead. This repo includes everything needed to run your
+own copy on [Fly.io](https://fly.io) — each person who wants this should deploy
+their **own** copy under their **own** Fly.io account with their **own**
+intervals.icu API key. Don't share a single deployment/URL between people; the
+URL secret described below is the *only* thing standing between the public
+internet and your intervals.icu data.
+
+### 1. Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (or a Docker-compatible CLI like
+  [Colima](https://github.com/abiosoft/colima): `brew install colima docker docker-buildx`,
+  then `colima start`)
+- The [Fly.io CLI](https://fly.io/docs/flyctl/install/): `brew install flyctl`
+- A Fly.io account (`fly auth login` creates one if needed; Fly.io is
+  pay-as-you-go, not free, but a personal low-traffic server like this typically
+  costs well under $1/month — see [Fly.io pricing](https://fly.io/docs/about/pricing/))
+
+### 2. Create your own Fly app
+
+From the repo root:
+
+```bash
+fly apps create <a-globally-unique-app-name>
+```
+
+Edit `fly.toml` and set `app = "<a-globally-unique-app-name>"` to match.
+
+### 3. Generate a URL secret and set all secrets
+
+Claude's custom-connector UI has no field for a bearer token or API key — only a
+URL — so the shared secret that gates access lives in the URL path itself
+(`https://<your-app>.fly.dev/<secret>/mcp`). Generate a long random one:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Then set your intervals.icu credentials and that secret on your Fly app:
+
+```bash
+fly secrets set \
+  API_KEY=<your_intervals_api_key> \
+  ATHLETE_ID=<your_intervals_athlete_id> \
+  INTERVALS_API_BASE_URL=https://intervals.icu/api/v1 \
+  MCP_URL_SECRET=<the_secret_you_just_generated> \
+  -a <a-globally-unique-app-name>
+```
+
+### 4. Deploy
+
+```bash
+fly deploy -a <a-globally-unique-app-name>
+```
+
+This builds `Dockerfile.remote` (which runs `fly/remote_entrypoint.py` in
+streamable-http mode) and deploys it. By default the app scales to zero when
+idle (`auto_stop_machines` in `fly.toml`) and only spins up a machine on an
+incoming request, so cost stays minimal for personal use. If you don't need
+zero-downtime redeploys, `fly scale count 1 -a <app-name>` keeps you on a
+single machine.
+
+### 5. Add it as a custom connector in Claude
+
+In Claude, go to **Settings → Connectors → Add custom connector** and enter:
+
+```
+https://<a-globally-unique-app-name>.fly.dev/<the_secret_you_just_generated>/mcp
+```
+
+Leave the OAuth fields empty. This is a real remote connector (not "local dev"),
+so it works the same way across Claude web, mobile, and desktop, in both classic
+chat and Cowork.
+
 ## Development and testing
 
 Install development dependencies and run the test suite with:
